@@ -1,1 +1,266 @@
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Prorated Payroll Calculator</title>
+   <script src="https://cdn.tailwindcss.com"></script>
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+   <style>
+       body {
+           font-family: 'Inter', sans-serif;
+           background-color: #f0f4f8;
+           display: flex;
+           justify-content: center;
+           align-items: flex-start; /* Align to top for better scrolling */
+           min-height: 100vh;
+           padding: 2rem;
+           box-sizing: border-box;
+       }
+       .container {
+           background-color: #ffffff;
+           padding: 2.5rem;
+           border-radius: 1.5rem;
+           box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+           max-width: 600px;
+           width: 100%;
+           border: 1px solid #e2e8f0;
+       }
+       h1 {
+           color: #1a202c;
+           margin-bottom: 1.5rem;
+           text-align: center;
+           font-weight: 700;
+       }
+       label {
+           display: block;
+           margin-bottom: 0.5rem;
+           font-weight: 600;
+           color: #4a5568;
+       }
+       input[type="number"],
+       input[type="date"] {
+           width: 100%;
+           padding: 0.75rem;
+           margin-bottom: 1.25rem;
+           border: 1px solid #cbd5e0;
+           border-radius: 0.75rem;
+           font-size: 1rem;
+           color: #2d3748;
+           box-sizing: border-box;
+           transition: border-color 0.2s;
+       }
+       input[type="number"]:focus,
+       input[type="date"]:focus {
+           outline: none;
+           border-color: #4299e1;
+           box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+       }
+       button {
+           width: 100%;
+           padding: 1rem;
+           background-color: #4299e1;
+           color: white;
+           border: none;
+           border-radius: 0.75rem;
+           font-size: 1.125rem;
+           font-weight: 700;
+           cursor: pointer;
+           transition: background-color 0.3s ease, transform 0.1s ease;
+           box-shadow: 0 4px 10px rgba(66, 153, 225, 0.3);
+       }
+       button:hover {
+           background-color: #3182ce;
+           transform: translateY(-2px);
+       }
+       button:active {
+           transform: translateY(0);
+       }
+       .result-box {
+           background-color: #f7fafc;
+           border: 1px solid #e2e8f0;
+           border-radius: 0.75rem;
+           padding: 1.5rem;
+           margin-top: 2rem;
+       }
+       .result-item {
+           display: flex;
+           justify-content: space-between;
+           padding: 0.5rem 0;
+           border-bottom: 1px dashed #edf2f7;
+       }
+       .result-item:last-child {
+           border-bottom: none;
+       }
+       .result-label {
+           font-weight: 600;
+           color: #2d3748;
+       }
+       .result-value {
+           font-weight: 700;
+           color: #2b6cb0;
+       }
+       .total-pay {
+           font-size: 1.25rem;
+           font-weight: 800;
+           color: #22543d;
+           margin-top: 1rem;
+           text-align: right;
+       }
+       .error-message {
+           color: #e53e3e;
+           font-size: 0.875rem;
+           margin-top: -0.75rem;
+           margin-bottom: 1rem;
+           text-align: center;
+       }
+   </style>
+</head>
+<body>
+   <div class="container">
+       <h1 class="text-3xl">Prorated Payroll Calculator</h1>
+
+
+       <div class="mb-4">
+           <label for="annualSalary">Annual Base Salary ($)</label>
+           <input type="number" id="annualSalary" value="35100" step="0.01" required>
+       </div>
+
+
+       <div class="mb-4">
+           <label for="monthlyCommissionThreshold">Monthly Commission Threshold ($)</label>
+           <input type="number" id="monthlyCommissionThreshold" value="6500" step="0.01" required>
+       </div>
+
+
+       <div class="mb-4">
+           <label for="commissionRate">Commission Rate (%)</label>
+           <input type="number" id="commissionRate" placeholder="e.g., 10 for 10%" step="0.1" required>
+       </div>
+
+
+       <div class="mb-4">
+           <label for="lastDayWorked">Last Day Worked (Date)</label>
+           <input type="date" id="lastDayWorked" required>
+       </div>
+
+
+       <div class="mb-4">
+           <label for="employeeBillables">Employee's Billables for the month ($)</label>
+           <input type="number" id="employeeBillables" step="0.01" required>
+       </div>
+
+
+       <button onclick="calculatePayroll()">Calculate Final Pay</button>
+
+
+       <div id="errorMessage" class="error-message hidden"></div>
+
+
+       <div id="results" class="result-box hidden">
+           <div class="result-item">
+               <span class="result-label">Prorated Base Salary:</span>
+               <span id="proratedBaseSalary" class="result-value"></span>
+           </div>
+           <div class="result-item">
+               <span class="result-label">Prorated Commission Threshold:</span>
+               <span id="proratedCommissionThreshold" class="result-value"></span>
+           </div>
+           <div class="result-item">
+               <span class="result-label">Commission Earned:</span>
+               <span id="commissionEarned" class="result-value"></span>
+           </div>
+           <div class="total-pay">
+               Total Final Pay: <span id="totalFinalPay"></span>
+           </div>
+       </div>
+   </div>
+
+
+   <script>
+       function getDaysInMonth(year, month) {
+           // Month is 0-indexed for Date object (0 for January, 11 for December)
+           return new Date(year, month + 1, 0).getDate();
+       }
+
+
+       function calculatePayroll() {
+           const annualSalary = parseFloat(document.getElementById('annualSalary').value);
+           const monthlyCommissionThreshold = parseFloat(document.getElementById('monthlyCommissionThreshold').value);
+           const commissionRate = parseFloat(document.getElementById('commissionRate').value) / 100; // Convert to decimal
+           const lastDayWorkedInput = document.getElementById('lastDayWorked').value;
+           const employeeBillables = parseFloat(document.getElementById('employeeBillables').value);
+
+
+           const errorMessageDiv = document.getElementById('errorMessage');
+           const resultsDiv = document.getElementById('results');
+
+
+           // Basic validation
+           if (isNaN(annualSalary) || isNaN(monthlyCommissionThreshold) || isNaN(commissionRate) || !lastDayWorkedInput || isNaN(employeeBillables)) {
+               errorMessageDiv.textContent = 'Please fill in all fields with valid numbers.';
+               errorMessageDiv.classList.remove('hidden');
+               resultsDiv.classList.add('hidden');
+               return;
+           } else {
+               errorMessageDiv.classList.add('hidden');
+           }
+
+
+           const lastDayDate = new Date(lastDayWorkedInput);
+           const year = lastDayDate.getFullYear();
+           const month = lastDayDate.getMonth(); // 0-indexed
+           const dayOfMonth = lastDayDate.getDate();
+
+
+           // Check if the date is valid
+           if (isNaN(lastDayDate.getTime())) {
+               errorMessageDiv.textContent = 'Please enter a valid date for "Last Day Worked".';
+               errorMessageDiv.classList.remove('hidden');
+               resultsDiv.classList.add('hidden');
+               return;
+           }
+
+
+           // Calculate days worked in the final month
+           const daysWorkedInMonth = dayOfMonth; // Assuming employment starts on 1st of the month if not specified otherwise
+
+
+           // Get total days in the specific month
+           const totalDaysInMonth = getDaysInMonth(year, month);
+
+
+           // 1. Prorated Base Salary Calculation
+           const daysInYear = (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 366 : 365; // Check for leap year
+           const dailySalary = annualSalary / daysInYear;
+           const proratedBaseSalary = dailySalary * daysWorkedInMonth;
+
+
+           // 2. Prorated Commission Calculation
+           const dailyCommissionThreshold = monthlyCommissionThreshold / totalDaysInMonth;
+           const proratedMonthlyThreshold = dailyCommissionThreshold * daysWorkedInMonth;
+
+
+           let commissionEarned = 0;
+           if (employeeBillables > proratedMonthlyThreshold) {
+               const commissionableAmount = employeeBillables - proratedMonthlyThreshold;
+               commissionEarned = commissionableAmount * commissionRate;
+           }
+
+
+           // Total Final Pay
+           const totalFinalPay = proratedBaseSalary + commissionEarned;
+
+
+           // Display Results
+           document.getElementById('proratedBaseSalary').textContent = `$${proratedBaseSalary.toFixed(2)}`;
+           document.getElementById('proratedCommissionThreshold').textContent = `$${proratedMonthlyThreshold.toFixed(2)}`;
+           document.getElementById('commissionEarned').textContent = `$${commissionEarned.toFixed(2)}`;
+           document.getElementById('totalFinalPay').textContent = `$${totalFinalPay.toFixed(2)}`;
+
+
+           resultsDiv.classList.remove('hidden');
+       }
+   </script>
+</body>
+</html>
 
